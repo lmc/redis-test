@@ -9,7 +9,7 @@ gem 'rails', '3.1.0'
 gem 'sqlite3'
 gem "mongoid", "~> 2.2"
 gem "bson_ext", "~> 1.3"
-
+gem 'redis-objects'
 
 #models
 gem 'state_machine'

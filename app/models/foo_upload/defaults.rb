@@ -14,6 +14,7 @@ class FooUpload
         file = Tempfile.new(['foo_upload-','.csv'],TMP_PATH)
         file_path = file.path
         file.unlink && file.close
+        
         CSV.open(file_path, "w") do |csv|
           csv << ["First Name","Last Name","Email Address"]
           10.times do |index|

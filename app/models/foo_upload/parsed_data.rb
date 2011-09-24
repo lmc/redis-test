@@ -4,6 +4,7 @@ class FooUpload::ParsedData
   include Mongoid::Document
   field ROW_INDEX_COLUMN_NAME, :type => Integer
 
+  #TODO: would this be better with an embedded document array?
   #dynamically set the collection name on all interactions with this scope
   def self.scoped_by_foo_upload(foo_upload)
     scoped_collection_name = foo_upload.parsed_data_collection_name
@@ -15,6 +16,10 @@ class FooUpload::ParsedData
       define_method(:collection,&scoped_collection_method)
     end
     scoped_class
+  end
+
+  def self.destroy_collection
+    collection.drop
   end
 
 end
