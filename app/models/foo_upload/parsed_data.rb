@@ -6,7 +6,7 @@ class FooUpload::ParsedData
 
   #dynamically set the collection name on all interactions with this scope
   def self.scoped_by_foo_upload(foo_upload)
-    scoped_collection_name = "foo_upload_parsed_data_#{foo_upload.id}"
+    scoped_collection_name = foo_upload.parsed_data_collection_name
     scoped_collection_method = lambda do
       @collection ||= Mongoid::Collection.new(self,scoped_collection_name)
     end
