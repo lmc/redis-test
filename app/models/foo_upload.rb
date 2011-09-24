@@ -4,4 +4,8 @@ class FooUpload
   field :status, :type => String
 
   include Defaults
+
+  def temporary_collection
+    FooUpload::TemporaryCollection.new(self)
+  end
 end

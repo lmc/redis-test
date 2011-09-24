@@ -20,6 +20,8 @@ class FooUpload
         file = Tempfile.new(['foo_upload-','.csv'],TMP_PATH)
         file.write(csv_data)
         file.close
+
+        new(:file_path => file.path)
       end
     end
   end
