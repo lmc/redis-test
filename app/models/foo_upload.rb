@@ -38,6 +38,22 @@ class FooUpload
     FooUpload::RedisWorker.prepare_work_for(self,self.parsed_data.all)
   end
 
+  def do_work_on(id,errors)
+    data = self.parsed_data.find(id)
+    puts "working on #{data.inspect}"
+
+    i = rand
+    if i < 0.3
+      puts "saved!"
+    elsif i > 0.7
+      errors << "Don't like this file"
+      puts "errored"
+    else
+      puts "time to fail"
+      raise "failed :("
+    end
+  end
+
 
   protected
 
