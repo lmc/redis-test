@@ -8,6 +8,16 @@ class FooUpload
   include Defaults
   include RedisStructures
 
+=begin
+  FooUpload.destroy_all
+  FooUpload.from_defaults.save!
+  FooUpload.last.parse_file
+  FooUpload.last.load_parsed_data_for_working
+  FooUpload::RedisWorker.new(FooUpload.last).work_once
+  [FooUpload::RedisWorker.new(FooUpload.last).work_once,FooUpload.last.work_complete?]
+
+  FooUpload.last.parsed_data.all.map(&:id).map(&:to_s)
+=end
 
   def parsed_data
     FooUpload::ParsedData.scoped_by_foo_upload(self)
@@ -40,18 +50,21 @@ class FooUpload
 
   def do_work_on(id,errors)
     data = self.parsed_data.find(id)
-    puts "working on #{data.inspect}"
-
+    
     i = rand
     if i < 0.3
       puts "saved!"
     elsif i > 0.7
-      errors << "Don't like this file"
       puts "errored"
+      errors << "Don't like this file"
     else
       puts "time to fail"
       raise "failed :("
     end
+  end
+
+  def work_complete?
+    self.parsed_data.count == (successful.count + errored.count + failed.count)
   end
 
 
