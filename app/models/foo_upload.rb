@@ -8,11 +8,15 @@ class FooUpload
   include Defaults
   include RedisStructures
 
+  #TODO: state machine
+  #TODO: find out how to stop mongo from bogging down past ~20,000 inserts
+
 =begin
   FooUpload.destroy_all
   Benchmark.benchmark {|x| x.report{ FooUpload.from_defaults.save! } }
-  Benchmark.benchmark {|x| x.report{ FooUpload.last.parse_file } }
-  Benchmark.benchmark {|x| x.report{ FooUpload.last.load_parsed_data_for_working } }
+  foo_upload = FooUpload.last
+  Benchmark.benchmark {|x| x.report{ foo_upload.parse_file } }
+  Benchmark.benchmark {|x| x.report{ foo_upload.load_parsed_data_for_working } }
   FooUpload::RedisWorker.new(FooUpload.last).work_once
   [FooUpload::RedisWorker.new(FooUpload.last).work_once,FooUpload.last.work_complete?]
 
@@ -53,18 +57,26 @@ class FooUpload
     FooUpload::RedisWorker.prepare_work_for(self,self.parsed_data.all)
   end
 
-  def do_work_on(id,errors)
+  def do_work_on(id)
     data = self.parsed_data.find(id).attributes
-    data.delete(:row_index)
+    data.delete('row_index')
+    data.delete('_id')
 
-    new_foo = Foo.new(data) #existing ID and all
+    new_foo = Foo.new(data)
+
+    if rand >= 0.9
+      raise "error"
+    elsif rand < 0.1
+      sleep 5
+    end
 
     if new_foo.save
       #puts "saved!"
       #puts "  #{new_foo.inspect}"
+      {success: true}
     else
       #puts "errored"
-      errors += new_foo.errors.full_messages
+      {success: false, errors: new_foo.errors.full_messages}
     end
   end
 

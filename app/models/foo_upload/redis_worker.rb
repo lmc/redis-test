@@ -29,7 +29,6 @@ class FooUpload
     def work_once
       Timeout.timeout(WORKER_TIMEOUT) do
         id = reserve_once
-        log "reserved #{id}"
 
         if id.nil?
           log "queue empty"
@@ -38,18 +37,17 @@ class FooUpload
 
         begin
           log "starting work on #{id}"
-          errors = []
-          working_for.do_work_on(id,errors)
+          status = working_for.do_work_on(id)
 
-          if errors.empty?
-            log "success"
+          if status[:success]
+            log "  success"
             success!(id)
           else
-            log "errored: #{errors.inspect}"
-            errored!(id,errors)
+            log "  errored: #{status[:errors].inspect}"
+            errored!(id,status[:errors])
           end
         rescue
-          log "failed"
+          log "  failed"
           # If exceptions/crashes:
           #   let job fail, leaving entries in working and working times queues
           raise
@@ -71,11 +69,10 @@ class FooUpload
     end
 
     # Periodically, go through the working queue, take each id and check (working_times[id] + timeout_seconds) >= Time.now
-    #   If so, check if failure_counts[id] >= threshold, if so:
+    #   If so, check if increment(failure_counts[id]) >= threshold, if so:
     #     remove self from working and working_times queues 
     #     add self to failed set
     #   Else
-    #     increment failures[id]
     #     remove self from working and working_times queues 
     #     re-add self to pending queue
     def reaper
@@ -83,30 +80,39 @@ class FooUpload
       #BUT THEN while we're doing that, the job actually completes successfully
       #so we enforce a time limit on workers with WORKER_TIMEOUT
       #and only jobs with REAPER_TIMEOUT_CHECK (which is a second or two longer) are considered timed out
-      working_for.working_times.all.each_pair do |id,timestamp|
-        log "checking #{id},#{timestamp}"
-        log "  #{(timestamp.to_i + REAPER_TIMEOUT_CHECK)}"
-        log "  #{Time.zone.now.to_i} >= #{(timestamp.to_i + REAPER_TIMEOUT_CHECK)}"
+
+      #set far-past times for jobs with a `working` entry but no `working_times` entry, to make them time out immediately
+      working_ids = working_for.working.to_a
+      working_times = working_for.working_times.all
+      working_ids.each do |id|
+        working_times[id] ||= Time.local(2000,1,1).to_i
+      end
+
+      working_times.each_pair do |id,timestamp|
+        log "checking #{id},#{timestamp} (#{Time.zone.now.to_i - (timestamp.to_i + REAPER_TIMEOUT_CHECK)})"
+
         if Time.zone.now.to_i >= (timestamp.to_i + REAPER_TIMEOUT_CHECK)
-          log "seems to have timed out"
           failures = working_for.failure_counts.incrby(id)
-          log "failure count: #{failures}"
-          log "  #{failures} >= #{REAPER_FAILURE_LIMIT}"
+          log "  failure count: #{failures} >= #{REAPER_FAILURE_LIMIT}"
+
           if failures >= REAPER_FAILURE_LIMIT
-            log "too many failures, removing from work"
             redis.multi do
+              log "  too many failures, removing from work"
               remove_from_working(id)
               working_for.failed << id
             end
+
           else
-            log "inserting back into pending"
             redis.multi do
+              log "  inserting back into pending"
               remove_from_working(id)
               working_for.pending << id
             end
           end
+
         end
       end
+
     end
 
     # Queues can be safely and atomically read/written by multiple processes this way
@@ -118,7 +124,7 @@ class FooUpload
     protected
 
     def log(*args)
-      #puts *args
+      puts *args
     end
 
     # On successful complete, do atomically:

@@ -39,6 +39,7 @@ gem 'jquery-rails'
 gem 'ruby-debug19', :require => 'ruby-debug'
 
 group :development, :test do
+  gem 'wirble'
   gem 'rspec-rails'
 end
 

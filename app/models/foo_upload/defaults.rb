@@ -17,7 +17,7 @@ class FooUpload
 
         CSV.open(file_path, "w") do |csv|
           csv << ["First Name","Last Name","Email Address"]
-          100_000.times do |index|
+          1_000.times do |index|
             csv << [Faker::Name.first_name,Faker::Name.last_name,Faker::Internet.email]
           end
         end
