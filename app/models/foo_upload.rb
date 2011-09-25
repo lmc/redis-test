@@ -10,16 +10,21 @@ class FooUpload
 
 =begin
   FooUpload.destroy_all
-  FooUpload.from_defaults.save!
-  FooUpload.last.parse_file
-  FooUpload.last.load_parsed_data_for_working
+  Benchmark.benchmark {|x| x.report{ FooUpload.from_defaults.save! } }
+  Benchmark.benchmark {|x| x.report{ FooUpload.last.parse_file } }
+  Benchmark.benchmark {|x| x.report{ FooUpload.last.load_parsed_data_for_working } }
   FooUpload::RedisWorker.new(FooUpload.last).work_once
   [FooUpload::RedisWorker.new(FooUpload.last).work_once,FooUpload.last.work_complete?]
+
+  foo_upload = FooUpload.last
+  worker = FooUpload::RedisWorker.new(foo_upload)
+  Benchmark.benchmark {|x| x.report{ (until foo_upload.work_complete?; worker.work_once; end) } }
 
   FooUpload.last.parsed_data.all.map(&:id).map(&:to_s)
 =end
 
   def parsed_data
+    #FIXME: collection doesn't seem to persist properly :/
     FooUpload::ParsedData.scoped_by_foo_upload(self)
   end
   def parsed_data_collection_name
@@ -49,17 +54,17 @@ class FooUpload
   end
 
   def do_work_on(id,errors)
-    data = self.parsed_data.find(id)
-    
-    i = rand
-    if i < 0.3
-      puts "saved!"
-    elsif i > 0.7
-      puts "errored"
-      errors << "Don't like this file"
+    data = self.parsed_data.find(id).attributes
+    data.delete(:row_index)
+
+    new_foo = Foo.new(data) #existing ID and all
+
+    if new_foo.save
+      #puts "saved!"
+      #puts "  #{new_foo.inspect}"
     else
-      puts "time to fail"
-      raise "failed :("
+      #puts "errored"
+      errors += new_foo.errors.full_messages
     end
   end
 

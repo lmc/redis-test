@@ -118,7 +118,7 @@ class FooUpload
     protected
 
     def log(*args)
-      puts *args
+      #puts *args
     end
 
     # On successful complete, do atomically:
